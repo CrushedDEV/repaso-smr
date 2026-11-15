@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Libreta de repaso · 2º SMR</title>
+<meta name="description" content="Repaso práctico de Programación, Aplicaciones Web y Redes para 2º de SMR.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/libreta.css?v=4">
+</head>
+<body>
+  <a class="saltar" href="#app">Saltar al contenido</a>
+  <nav class="pestanas" aria-label="Asignaturas">
+    <a href="#/" data-pest="inicio">libreta</a>
+    <a href="#/m/prog" data-pest="prog">programación</a>
+    <a href="#/m/web" data-pest="web">web</a>
+    <a href="#/m/redes" data-pest="redes">redes</a>
+    <a href="#/errores" data-pest="errores">mis fallos</a>
+  </nav>
+  <button class="tema-btn" id="temaBtn" type="button" aria-label="Cambiar entre papel y pizarra">pizarra</button>
+  <main id="app" tabindex="-1"></main>
+
+  <script src="js/contenido/programacion.js?v=4"></script>
+  <script src="js/contenido/labs-python.js?v=4"></script>
+  <script src="js/contenido/web.js?v=4"></script>
+  <script src="js/contenido/redes.js?v=4"></script>
+  <script src="js/comprobadores.js?v=4"></script>
+  <script src="js/python.js?v=4"></script>
+  <script src="js/motor.js?v=4"></script>
+</body>
+</html>
