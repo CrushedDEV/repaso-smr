@@ -217,7 +217,7 @@
           el("span", { class: "tdesc" }, t.desc),
           el("span", { class: "barra-subra", "aria-hidden": "true" }, el("i", { style: `width:${pct}%` })),
         ),
-        el("span", { class: "estado" }, t.items.length + " preguntas" + (nlabs ? ` · ${nlabs} labs` : "")),
+        el("span", { class: "estado" }, t.items.length ? t.items.length + " preguntas" + (nlabs ? ` · ${nlabs} labs` : "") : `${nlabs} ejercicios`),
       )));
     });
     app.append(ul);
@@ -250,18 +250,32 @@
       det.querySelectorAll("pre.codigo[data-lang]").forEach((p) => { p.innerHTML = resaltar(p.textContent, p.dataset.lang); });
     }
     if (t.labs.length) {
-      const ul = el("ul", { class: "labs" });
+      const seccion = el("section", { class: "bloque" },
+        el("h2", null, t.labsTitulo || "Laboratorio", el("small", null, t.labsTexto || "escribe el código y te lo corrijo")));
+      const grupos = [];
       t.labs.forEach((l) => {
-        const s = labEst(l.id);
-        ul.append(el("li", null, el("a", { href: "#/lab/" + l.id },
-          el("span", { class: "lnom" }, l.titulo),
-          el("span", { class: "lest" + (s.hecho ? " hecho" : "") }, s.hecho ? "✓ superado" : s.intentos ? "a medias" : (l.nivel || "pendiente")),
-        )));
+        let gr = grupos.find((x) => x.nombre === (l.grupo || ""));
+        if (!gr) { gr = { nombre: l.grupo || "", labs: [] }; grupos.push(gr); }
+        gr.labs.push(l);
       });
-      app.append(el("section", { class: "bloque" },
-        el("h2", null, "Laboratorio", el("small", null, t.labsTexto || "escribe el código y te lo corrijo")),
-        ul,
-      ));
+      grupos.forEach((gr) => {
+        const ul = el("ul", { class: "labs" });
+        gr.labs.forEach((l) => {
+          const s = labEst(l.id);
+          ul.append(el("li", null, el("a", { href: "#/lab/" + l.id },
+            el("span", { class: "lnom" }, l.titulo),
+            el("span", { class: "lest" + (s.hecho ? " hecho" : "") }, s.hecho ? "✓ superado" : s.intentos ? "a medias" : (l.nivel || "pendiente")),
+          )));
+        });
+        if (gr.nombre) {
+          const hechos = gr.labs.filter((l) => labEst(l.id).hecho).length;
+          seccion.append(el("div", { class: "grupo-labs" },
+            el("h3", null, gr.nombre, el("span", { class: "grupo-estado" }, hechos === gr.labs.length ? "✓ completo" : `${hechos} de ${gr.labs.length}`)),
+            gr.desc || gr.labs[0].grupoDesc ? el("p", { class: "suave chico" }, gr.labs[0].grupoDesc) : null,
+            ul));
+        } else seccion.append(ul);
+      });
+      app.append(seccion);
     }
   }
 
@@ -766,6 +780,8 @@
     ValueError: "Un valor no válido para esa operación (por ejemplo <code>.remove(x)</code> de algo que no está en la lista).",
     UnboundLocalError: "Usas una variable antes de darle valor dentro de la función. Inicialízala al principio.",
     RecursionError: "La función se llama a sí misma sin parar.",
+    FaltanEntradas: "Tu programa sigue pidiendo datos con <code>input()</code> cuando ya no quedan: no ha parado donde debía. Revisa la condición de salida del bucle (¿comparas con <code>\"fin\"</code>, con <code>0</code>, con la opción de salir?) y que haces <code>break</code> o cambias la condición.",
+    InputFueraDeMain: "Hay un <code>input()</code> que se ejecuta nada más cargar el fichero. Mete todo el programa dentro de <code>def main():</code> y <b>no llames tú a <code>main()</code></b> al final: la llaman las pruebas.",
   };
   async function comprobarPython(l, codigo, res) {
     const lista = el("ul", { class: "resultados" });
@@ -797,7 +813,26 @@
       r.tests.forEach((t) => {
         if (!t.ok) fallos++;
         let det = null;
-        if (!t.ok) {
+        const ultima = t.test.split("\n").pop();
+        const mProg = ultima.match(/__programa\(main,\s*(\[[\s\S]*?\])\)/);
+        let entradas = null;
+        if (mProg) { try { entradas = JSON.parse(mProg[1]); } catch (e) { entradas = null; } }
+        const titulo = entradas
+          ? el("span", null, "Si alguien teclea: ", entradas.length ? entradas.map((e) => el("code", null, e)).reduce((acc, x) => acc.length ? acc.concat([" · ", x]) : [x], []) : el("i", null, "nada"))
+          : el("code", null, ultima);
+        if (!t.ok && entradas && t.obt && t.esp) {
+          const lineas = [];
+          const n = Math.max(t.obt.length, t.esp.length);
+          for (let i = 0; i < n; i++) {
+            const a = t.obt[i], b = t.esp[i];
+            if (a === b) continue;
+            if (a === undefined) lineas.push(`Falta la línea ${i + 1}: <code>${esc(b)}</code>`);
+            else if (b === undefined) lineas.push(`Sobra la línea ${i + 1}: <code>${esc(a)}</code>`);
+            else lineas.push(`Línea ${i + 1}: imprimes <code>${esc(a)}</code> y debía ser <code>${esc(b)}</code>`);
+            if (lineas.length >= 4) break;
+          }
+          det = lineas.join("<br>") + `<br><span class="suave">Debía imprimir:</span><pre class="codigo">${esc(t.esp.join("\n"))}</pre>`;
+        } else if (!t.ok) {
           if (t.excepcion) det = `Tu función lanza <code>${esc(t.excepcion.tipo)}</code>${t.excepcion.linea ? " (línea " + t.excepcion.linea + ")" : ""}. ${ERRORES_PY[t.excepcion.tipo] || esc(t.excepcion.msg)}`;
           else if (t.obtenido !== undefined) {
             det = `Devuelve <code>${esc(t.obtenido)}</code> y se esperaba <code>${esc(t.esperado)}</code>.`;
@@ -808,7 +843,7 @@
           if (/^assert (original|inventario_original)\b/.test(t.test.split("\n").pop()) && !t.excepcion) det = "Has modificado la lista que te pasaron como argumento. Crea una lista nueva (o una copia con <code>lista[:]</code>) y trabaja sobre ella.";
         }
         lista.append(el("li", { class: t.ok ? "ok" : "no" }, el("span", { class: "marca" }, t.ok ? "✓" : "✗"),
-          el("span", null, el("code", null, t.test.split("\n").pop()), det ? el("span", { class: "det", html: det }) : null)));
+          el("span", null, titulo, det ? el("span", { class: "det", html: det }) : null)));
       });
     }
     reglas.forEach((msg) => { fallos++; lista.append(el("li", { class: "no" }, el("span", { class: "marca" }, "✗"), el("span", null, "Norma del enunciado", el("span", { class: "det", html: msg })))); });

@@ -7,7 +7,33 @@
   const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 
   const AYUDANTE = `
-import ast, json, io, sys, traceback
+import ast, json, io, sys, traceback, builtins
+
+class FaltanEntradas(Exception):
+    pass
+
+class InputFueraDeMain(Exception):
+    pass
+
+def _programa(funcion, entradas):
+    """Ejecuta un programa completo dándole las entradas como si alguien las tecleara.
+    Devuelve las líneas (no vacías) que ha impreso con print()."""
+    cola = [str(e) for e in entradas]
+    def falso_input(prompt=""):
+        if not cola:
+            raise FaltanEntradas("tu programa sigue pidiendo datos con input() cuando ya no quedan")
+        return cola.pop(0)
+    buf = io.StringIO()
+    viejo_in, viejo_out = builtins.input, sys.stdout
+    builtins.input, sys.stdout = falso_input, buf
+    try:
+        funcion()
+    finally:
+        builtins.input, sys.stdout = viejo_in, viejo_out
+    return [l.strip() for l in buf.getvalue().splitlines() if l.strip()]
+
+def _input_en_carga(prompt=""):
+    raise InputFueraDeMain("hay un input() que se ejecuta al cargar el fichero")
 
 def _linea_usuario(tb):
     linea = None
@@ -29,18 +55,22 @@ def __ejecutar(codigo, tests):
     return json.dumps(res)
 
 def _correr(codigo, tests, res):
-    G = {"__name__": "__main__"}
+    G = {"__name__": "__main__", "__programa": _programa}
     if True:
         try:
             comp = compile(codigo, "tu_codigo.py", "exec")
         except SyntaxError as e:
             res["error"] = {"tipo": type(e).__name__, "msg": str(e.msg), "linea": e.lineno}
             return
+        viejo_in = builtins.input
+        builtins.input = _input_en_carga
         try:
             exec(comp, G)
         except Exception as e:
             res["error"] = {"tipo": type(e).__name__, "msg": str(e), "linea": _linea_usuario(e.__traceback__)}
             return
+        finally:
+            builtins.input = viejo_in
         for t in tests:
             r = {"test": t, "ok": False}
             try:
@@ -58,6 +88,13 @@ def _correr(codigo, tests, res):
                     if not r["ok"]:
                         r["obtenido"] = repr(izq)
                         r["esperado"] = repr(der)
+                        if isinstance(izq, list) and isinstance(der, list):
+                            try:
+                                json.dumps([izq, der])
+                                r["obt"] = izq
+                                r["esp"] = der
+                            except Exception:
+                                pass
                 else:
                     exec(compile(ast.Module(body=[ultima], type_ignores=[]), "prueba", "exec"), G)
                     r["ok"] = True

@@ -406,3 +406,10 @@ pre.codigo .tag { color: var(--rojo); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Exámenes agrupados ---------- */
+.grupo-labs { margin: 28px 0 8px; }
+.grupo-labs h3 { font: 700 24px/1.15 var(--serif); display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 2px solid var(--tinta); padding-bottom: 6px; }
+.grupo-estado { font: italic 600 16px var(--mano); color: var(--rojo); white-space: nowrap; }
+.grupo-labs > p { margin: 6px 0 0; }
+.resultados .det pre.codigo { margin: 6px 0 0; font-size: 13px; color: var(--tinta); font-weight: 400; }
